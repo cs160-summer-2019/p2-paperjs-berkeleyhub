@@ -1,3 +1,4 @@
+
 {% load static %}
 
 <!DOCTYPE html>
@@ -5,23 +6,31 @@
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   	<title>P3 Coloring</title>
-
-	<script type="text/javascript" src="{% static 'coloring/vendors/jquery/jquery-3.3.1.min.js' %}"></script>
+  
+  <script type="text/javascript" src="{% static 'coloring/vendors/jquery/jquery-3.3.1.min.js' %}"></script>
 	<script type="text/javascript" src="{% static 'coloring/vendors/paper/paper-full.min.js' %}"></script>
+
+  <!-- Latest compiled and minified CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+  <!-- Optional theme -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+  <!-- Latest compiled and minified JavaScript -->
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+	
 
 	<style type="text/css">
 		#color-palette {
-			width: 300px;
+			width: 95%;
 			background-color: #f1f1f1;
 			display: flex;
 			flex-wrap: wrap;
-			position: absolute;
-			top: 0;
 		}
 
 		.swatch {
-			width: 24px;
-			height: 24px;
+			width: 50px;
+			height: 50px;
 			-moz-border-radius: 12px;
 			-webkit-border-radius: 12px;
 			border-radius: 12px;
@@ -35,6 +44,16 @@
 		    margin-right: auto;
 		    display: block;
 		}
+    
+    /* idea borrowed from https://stackoverflow.com/questions/48985608/change-color-gradient-of-input-slider-using-js */
+    .slider { 
+        -webkit-appearance: none;
+        height: 10px;
+        background: linear-gradient(to right, rgb(255,255,255) , rgb(255,0,0) );
+        -webkit-transition: .2s;
+        transition: opacity .2s;
+        height: 10px;
+    }
 	</style>
 
 	<script type="text/javascript" canvas="canvas">
@@ -45,12 +64,13 @@
 			var mandala = {
 				item: null,
 				lastClicked: null,
-				filePath: '/static/coloring/images/mandala-freepik.svg'
+				filePath: '/static/coloring/images/mandala-freepik.svg',
+        history: []
 			};	
 
 			// color palette
 			var cp = {
-				history: ["#000000"], // black selected by default
+				history: ["#FF0000"], // black selected by default
 				options: [],
 				$container: $('#color-palette')
 			}
@@ -86,14 +106,135 @@
 			// your custom interaction goes here!
 			// you may replace everything
 			function myCustomInteraction() {
-				var tool = new paper.Tool();
+        // Create tools
+				var fillpaint = new paper.Tool();
+        var pen = new paper.Tool();
+        var eraser = new paper.Tool();
+        var marker = new paper.Tool();
+        // Stores history index, uses redo and undo
+        var historyIndex = 0;
+        // Stores path
+        var path;
 
-				tool.onMouseDown = function (event) {
+        // Tool implementations
+			  fillpaint.onMouseDown = function (event) {
 				    var hit = mandala.item.hitTest(event.point, { tolerance: 10, fill: true });
 				    if (hit) {
 				        hit.item.fillColor = cp.history[cp.history.length - 1];
 				    }
+            mandala.history.push(hit.item);
+            historyIndex = mandala.history.length;
 				}
+        
+        pen.onMouseDown = function (event) {
+				    path = new paper.Path();
+            path.add(event.point);
+            path.strokeColor = cp.history[cp.history.length - 1];
+            path.strokeWidth = 5;
+            path.strokeCap = 'round';
+            mandala.history.push(path);
+            historyIndex = mandala.history.length;
+				}
+        
+        pen.onMouseDrag = function(event) {
+            path.add(event.point);
+        }
+        
+        marker.onMouseDown = function (event) {
+				    path = new paper.Path();
+            path.add(event.point);
+            path.strokeColor = cp.history[cp.history.length - 1];
+            path.strokeWidth = 15;
+            path.strokeCap = 'round';
+            mandala.history.push(path);
+            historyIndex = mandala.history.length ;
+				}
+        
+        marker.onMouseDrag = function(event) {
+            path.add(event.point);
+        }
+        
+        eraser.onMouseDown = function (event) {
+				    path = new paper.Path();
+            path.add(event.point);
+            path.strokeColor = 'white';
+            path.strokeWidth = 15;
+            path.strokeCap = 'round';
+            mandala.history.push(path);
+            historyIndex = mandala.history.length;
+            /*var hit = mandala.item.hitTest(event.point, { tolerance: 10, fill: true });
+				    if (hit) {
+				        hit.item.fillColor = 'white';
+				    }*/
+				}
+        
+        eraser.onMouseDrag = function(event) {
+            path.add(event.point);
+        }
+        
+        // Set pen to default
+        pen.activate();
+        
+        $(document).ready(function() {
+            // Set button on click functions
+            $("#eraser").click(function() {
+                eraser.activate();
+            });
+
+            $("#pen").click(function() {
+                pen.activate();
+            });
+          
+            $("#marker").click(function() {
+                marker.activate();
+            });
+
+            $("#fillpaint").click(function() {
+                fillpaint.activate();
+            });
+          
+            $("#undo").click(function() {
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    mandala.history[historyIndex].opacity=0;
+                }
+            });
+          
+            $("#redo").click(function() {
+                if (historyIndex < mandala.history.length) {
+                    mandala.history[historyIndex].opacity=100;
+                    historyIndex++;
+                }
+            });
+          
+            $("#tools").click(function() {
+                $("#color-palette").hide();
+                $("#toolsmenu").show();
+                $("#player").hide();
+                $(".slider").hide();
+            });
+          
+            $("#colors").click(function() {
+                $("#color-palette").show();
+                $("#toolsmenu").hide();
+                $("#player").hide();
+                $(".slider").show();
+            });
+          
+            $("#music").click(function() {
+                $("#color-palette").hide();
+                $("#toolsmenu").hide();
+                $("#player").show();
+                $(".slider").hide();
+            });
+          
+            /*$(".slider").click(function() {
+                var percent = (this.value / 255) * 100;
+                alert(cp.history[cp.history.length - 1]);
+                cp.history[cp.history.length - 1] = "hsl(cp.history[cp.history.length - 1], " + percent + "%, 100%)";
+            });*/
+        });
+        
 			}
 
 
@@ -105,8 +246,12 @@
 					var $swatch = $("<div>").css("background-color", colors[i])
 									   .addClass("swatch");
 					$swatch.click(function(){
-						// add color to the color palette history
-					  	cp.history.push($(this).css("background-color"));
+						  // add color to the color palette history
+              var hex = $(this).css("background-color");
+					  	cp.history.push(hex);
+              
+              // change slider gradient
+              $("#saturation").css("background", 'linear-gradient(to right, rgb(255, 255, 255), ' + hex + ')');
 					});
 					cp.$container.append($swatch);
 				}
@@ -154,9 +299,74 @@
 		}
 	</script>
 </head>
-<body>	
-
-	<canvas id="myCanvas" width="750px" height="750px"></canvas>
-	<div id="color-palette"></div>
+<body class="center" style="text-align:center">	
+  <div style="border:solid 3px; border-radius:25px; padding:10px">
+      <!-- https://www.flaticon.com/free-icon/left-arrow-angle_60573#term=back&page=1&position=30 -->
+      <button class = "btn btn-lg" id="share" style="float:left; margin-left:10px" >
+        <img src='/static/coloring/images/back.png' width='30px'/>
+      </button>
+      <!-- https://www.flaticon.com/free-icon/undo_1276380#term=undo&page=1&position=47 -->
+      <button class = "btn btn-lg" id="undo">
+        <img src='/static/coloring/images/undo.png' width='30px'/>
+      </button>
+      <!-- https://www.flaticon.com/free-icon/redo_1276371#term=redo&page=1&position=54 -->
+      <button class = "btn btn-lg" id="redo">
+        <img src='/static/coloring/images/redo.png' width='30px'/>
+      </button>
+      <!-- https://www.flaticon.com/free-icon/social-media_902765#term=share&page=1&position=3 -->
+      <button class = "btn btn-lg" id="share" style="float:right; margin-right:10px">
+        <img src='/static/coloring/images/share.png' width='30px'/>
+      </button>
+  </div>
+  <canvas id="myCanvas" width="750px" height="750px"></canvas>
+  <div style="border:solid 3px; border-radius:25px">
+      <div class="btn-group btn-lg btn-group-toggle" data-toggle="buttons" id="menu">
+        <label class="btn btn-lg btn-secondary active"  id="colors"> 
+          <input type="radio" checked> Colors
+        </label>
+        <label class="btn btn-lg btn-secondary" id="tools"> 
+          <input type="radio" checked> Tools
+        </label>
+        <label class="btn btn-lg btn-secondary" id="music" > 
+          <input type="radio" checked> Music
+        </label>
+      </div>
+  </div>
+  <br>
+  <input type="range" value="127" class="slider" id="saturation" min="0" max="255" style="width:300px; margin: 0 auto" >
+  <br>
+  <div id="color-palette" style="margin: 0 auto"></div>
+  <br>
+  <div class="btn-group btn-lg btn-group-toggle" id="toolsmenu" data-toggle="buttons" style="display:none">
+    <!--https://www.flaticon.com/free-icon/double-sided-eraser_25454#term=eraser&page=1&position=6-->
+    <label class="btn btn-lg btn-secondary"  id="eraser"> 
+      <input type="radio" checked>
+      <img src='/static/coloring/images/eraser.png' width='30px'/>
+      <br>
+      eraser
+    </label>
+    <!-- https://www.flaticon.com/free-icon/edit_109488#term=pen&page=1&position=48 -->
+    <label class="btn btn-lg btn-secondary active" id="pen"> 
+      <input type="radio" checked> <img src='/static/coloring/images/pen.png' width='30px'/>
+      <br>
+      pen
+    </label>
+    <!-- https://www.flaticon.com/free-icon/marker_1904265#term=marker&page=1&position=29 -->
+    <label class="btn btn-lg btn-secondary" id="marker" > 
+      <input type="radio" checked> <img src='/static/coloring/images/marker.png' width='30px'/>
+      <br>
+      marker
+    </label>
+    <!-- https://www.flaticon.com/free-icon/paint-bucket_1729#term=fill%20paint&page=1&position=14 -->
+    <label class="btn btn-lg btn-secondary" id="fillpaint" > 
+      <input type="radio" checked> <img src='/static/coloring/images/paint.png' width='30px'/>
+      <br>
+      fill paint
+    </label>
+  </div>
+  <button class="btn btn-lg btn-secondary" id="player" style="display:none">
+    Connect to your spotify
+  </button>
+  
 </body>
 </html>
